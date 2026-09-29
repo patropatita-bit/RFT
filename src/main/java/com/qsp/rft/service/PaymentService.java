@@ -1,5 +1,6 @@
 package com.qsp.rft.service;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +15,7 @@ public class PaymentService {
 
 	@Autowired
 	private PaymentRepository paymentRepository;
+	
 	
 	public Payment savePayment(Payment payment) {
 		
@@ -45,6 +47,9 @@ public class PaymentService {
 	        paymentRepository.deleteById(id);
 	    }
 		
+	  public BigDecimal getTotalPayment() {
+		  return paymentRepository.getTotalPayment();
+	  }
 	 }
 
 

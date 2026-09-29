@@ -1,5 +1,6 @@
 package com.qsp.rft.controller;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,4 +47,9 @@ public class PaymentController {
 	    public void deletePayment(@PathVariable Long id) {
 	        paymentService.deletePayment(id);
 	    }
+	 
+	 @GetMapping("/total")
+	 public BigDecimal getTotalPayment() {
+	     return paymentService.getTotalPayment();
+	 }
 }
