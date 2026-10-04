@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Restaurant Dashboard</title>
+<style>
+/* ROOT */
+:root{--bg:#f5f7fb;--card:rgba(255,255,255,0.82);--text:#172033;--muted:#718096;--border:rgba(255,255,255,0.7);
+--green:#10b981;--red:#ef4444;--blue:#3b82f6;
+--shadow:0 10px 35px rgba(31,41,55,0.08);--shadow-hover:0 18px 45px rgba(31,41,55,0.15);}
+/* RESET */
+*{box-sizing:border-box;margin:0;padding:0;}
+/* BODY */
+body{min-height:100vh;color:var(--text);overflow-x:hidden;
+font-family:"Segoe UI",system-ui,-apple-system,BlinkMacSystemFont,sans-serif;
+background:radial-gradient(circle at 10% 20%,rgba(16,185,129,0.12),transparent 30%),
+radial-gradient(circle at 90% 10%,rgba(59,130,246,0.12),transparent 30%),
+linear-gradient(135deg,#f8fafc,#eef2ff);}
+body::before{content:"";position:fixed;width:350px;height:350px;top:-120px;right:-100px;border-radius:50%;
+background:linear-gradient(135deg,rgba(16,185,129,0.12),rgba(59,130,246,0.10));
+filter:blur(40px);animation:floating 8s ease-in-out infinite;pointer-events:none;}
+@keyframes floating{0%,100%{transform:translateY(0) rotate(0deg);}50%{transform:translateY(35px) rotate(15deg);}}
+/* MAIN */
+main{width:min(1200px,94%);margin:auto;padding:35px 0 60px;}
+/* HEADER */
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;animation:slideDown .7s ease;}
+.brand{display:flex;align-items:center;gap:15px;}
+.logo{width:55px;height:55px;border-radius:16px;display:flex;justify-content:center;align-items:center;font-size:26px;color:#fff;
+background:linear-gradient(135deg,#10b981,#059669);box-shadow:0 10px 25px rgba(16,185,129,.3);animation:logoPulse 3s infinite;}
+@keyframes logoPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.05);}}
+.title h1{font-size:30px;font-weight:800;letter-spacing:-1px;}
+.title h1 span{background:linear-gradient(90deg,#10b981,#3b82f6);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.title p{color:var(--muted);margin-top:3px;}
+/* DATE BAR */
+.toolbar{display:flex;align-items:center;gap:12px;margin-bottom:25px;animation:fadeUp .7s ease .15s both;}
+.date-box{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.8);
+backdrop-filter:blur(15px);padding:8px 12px;border-radius:14px;box-shadow:var(--shadow);}
+.date-box span{font-size:18px;}
+input[type="date"]{border:none;outline:none;background:transparent;color:var(--text);font-size:15px;font-weight:600;}
+button{border:none;padding:12px 20px;border-radius:13px;color:#fff;font-weight:700;cursor:pointer;
+background:linear-gradient(135deg,#10b981,#059669);box-shadow:0 8px 20px rgba(16,185,129,.25);
+transition:transform .25s ease,box-shadow .25s ease;}
+button:hover{transform:translateY(-3px);box-shadow:0 13px 28px rgba(16,185,129,.35);}
+button:active{transform:scale(.96);}
+button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:2px;}
+/* MESSAGE */
+#msg{min-height:35px;margin-bottom:10px;font-size:14px;font-weight:600;}
+.message-success{color:#059669;}
+.message-error{color:#dc2626;}
+/* KPI CARDS */
+.totals{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:22px;}
+.kpi{position:relative;overflow:hidden;padding:25px;border-radius:22px;background:var(--card);backdrop-filter:blur(20px);
+border:1px solid var(--border);box-shadow:var(--shadow);transition:transform .35s ease,box-shadow .35s ease;animation:fadeUp .7s ease both;}
+.kpi:nth-child(2){animation-delay:.1s;}
+.kpi:nth-child(3){animation-delay:.2s;}
+.kpi:hover{transform:translateY(-8px) scale(1.015);box-shadow:var(--shadow-hover);}
+.kpi::after{content:"";position:absolute;width:130px;height:130px;border-radius:50%;right:-45px;bottom:-60px;opacity:.12;transition:transform .5s ease;}
+.kpi:hover::after{transform:scale(1.5);}
+.income::after{background:var(--green);}
+.expense::after{background:var(--red);}
+.profit::after{background:var(--blue);}
+.kpi-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.kpi-icon{width:45px;height:45px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;}
+.income .kpi-icon{background:linear-gradient(135deg,#34d399,#059669);}
+.expense .kpi-icon{background:linear-gradient(135deg,#fb7185,#dc2626);}
+.profit .kpi-icon{background:linear-gradient(135deg,#60a5fa,#2563eb);}
+.kpi-label{color:var(--muted);font-size:14px;font-weight:600;}
+.kpi-value{font-size:30px;font-weight:800;letter-spacing:-1px;}
+/* FIX 1: profit number uses the colour set by JavaScript (green = profit, red = loss) */
+.profit .kpi-value{color:var(--profit-color,#2563eb);}
+.kpi-sub{margin-top:6px;color:var(--muted);font-size:13px;}
+/* CONTENT CARDS */
+.split{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;}
+.card{background:var(--card);backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:22px;padding:25px;
+box-shadow:var(--shadow);animation:fadeUp .8s ease .25s both;transition:transform .35s ease,box-shadow .35s ease;}
+.card:hover{transform:translateY(-5px);box-shadow:var(--shadow-hover);}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:25px;}
+.card-title{display:flex;align-items:center;gap:12px;}
+.card-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:#ecfdf5;color:#059669;font-size:20px;}
+.card h2{font-size:18px;}
+.card p{color:var(--muted);font-size:13px;}
+.badge{padding:7px 12px;border-radius:30px;font-size:12px;font-weight:700;background:#ecfdf5;color:#059669;}
+.badge-expense{background:#eef2ff;color:#6366f1;}
+/* BREAKDOWN */
+.row{margin-bottom:18px;animation:fadeIn .5s ease both;}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;font-size:14px;font-weight:600;}
+.track{height:9px;background:#e9eef3;border-radius:20px;overflow:hidden;}
+.fill{height:100%;border-radius:20px;background:linear-gradient(90deg,#10b981,#34d399);width:0;animation:progressAnimation 1.2s ease forwards;transform-origin:left;}
+#types .fill{background:linear-gradient(90deg,#6366f1,#8b5cf6);}
+.empty{color:var(--muted);padding:20px 0;text-align:center;}
+/* LOADING */
+.loading{pointer-events:none;opacity:.7;}
+.loading::after{content:" ⏳";}
+/* ANIMATIONS */
+@keyframes fadeUp{from{opacity:0;transform:translateY(25px);}to{opacity:1;transform:translateY(0);}}
+@keyframes fadeIn{from{opacity:0;transform:translateX(-10px);}to{opacity:1;transform:translateX(0);}}
+@keyframes slideDown{from{opacity:0;transform:translateY(-20px);}to{opacity:1;transform:translateY(0);}}
+@keyframes progressAnimation{from{width:0;}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;}}
+/* RESPONSIVE */
+@media (max-width:850px){.totals{grid-template-columns:1fr;}.split{grid-template-columns:1fr;}}
+@media (max-width:550px){
+main{width:92%;padding-top:25px;}
+.header{align-items:flex-start;}
+.title h1{font-size:23px;}
+.logo{width:45px;height:45px;font-size:20px;}
+.toolbar{flex-direction:column;align-items:stretch;}
+.date-box{justify-content:space-between;}
+button{width:100%;}
+.card{padding:18px;}
+.kpi{padding:20px;}
+.kpi-value{font-size:26px;}}
+</style>
+</head>
+<body>
+<main>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="brand">
+    <div class="logo">🍽️</div>
+    <div class="title">
+      <h1>Restaurant <span>Dashboard</span></h1>
+      <p>Track your daily restaurant performance</p>
+    </div>
+  </div>
+</header>
+
+<!-- TOOLBAR -->
+<div class="toolbar">
+
+  <div class="date-box">
+    <span>📅</span>
+    <input type="date" id="date" aria-label="Select date">
+  </div>
+
+  <button id="load">↻ &nbsp; Show Summary</button>
+
+  <a href="add.html" style="font-weight:700;color:#059669;text-decoration:none;">
+    + Add new
+  </a>
+
+  <a href="list.html" style="font-weight:700;color:#059669;text-decoration:none;">
+    View all
+  </a>
+
+</div>
+
+<!-- MESSAGE -->
+<div id="msg" role="alert"></div>
+
+<!-- KPI -->
+<section class="totals">
+  <div class="kpi income">
+    <div class="kpi-top">
+      <div>
+        <div class="kpi-label">Total Income</div>
+        <div class="kpi-value" id="income">₹0</div>
+      </div>
+      <div class="kpi-icon">₹</div>
+    </div>
+    <!-- FIX 2: text is true for any date, not only "today" -->
+    <div class="kpi-sub">Money received on this date</div>
+  </div>
+
+  <div class="kpi expense">
+    <div class="kpi-top">
+      <div>
+        <div class="kpi-label">Total Expenses</div>
+        <div class="kpi-value" id="expense">₹0</div>
+      </div>
+      <div class="kpi-icon">💳</div>
+    </div>
+    <div class="kpi-sub">Money spent on this date</div>
+  </div>
+
+  <div class="kpi profit">
+    <div class="kpi-top">
+      <div>
+        <div class="kpi-label" id="resultLabel">Profit</div>
+        <div class="kpi-value" id="profit">₹0</div>
+      </div>
+      <div class="kpi-icon">📈</div>
+    </div>
+    <div class="kpi-sub">Net result for this date</div>
+  </div>
+</section>
+
+<!-- BREAKDOWN -->
+<section class="split">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">
+        <div class="card-icon">💰</div>
+        <div>
+          <h2>Income by Payment Mode</h2>
+          <p>Where your income came from</p>
+        </div>
+      </div>
+      <div class="badge">Income</div>
+    </div>
+    <div id="modes"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">
+        <div class="card-icon">📊</div>
+        <div>
+          <h2>Expenses by Type</h2>
+          <p>Where your money was spent</p>
+        </div>
+      </div>
+      <div class="badge badge-expense">Expenses</div>
+    </div>
+    <div id="types"></div>
+  </div>
+</section>
+
+</main>
+
+<script>
+/* SPRING BOOT API (change this after deployment) */
+const API = "http://localhost:8081";
+
+/* HELPERS */
+const $ = (id) => document.getElementById(id);
+const money = (n) => "₹" + Number(n).toLocaleString("en-IN");
+
+/* DEFAULT DATE = today (local time) */
+const now = new Date();
+$("date").value = now.getFullYear() + "-" +
+  String(now.getMonth() + 1).padStart(2, "0") + "-" +
+  String(now.getDate()).padStart(2, "0");
+
+/* DRAW BREAKDOWN */
+function drawBreakdown(el, data) {
+  el.textContent = "";
+  const entries = Object.entries(data || {});
+
+  if (entries.length === 0) {
+    el.textContent = "No entries for this date.";
+    el.className = "empty";
+    return;
+  }
+  el.className = "";
+
+  const total = entries.reduce((sum, [, value]) => sum + Number(value), 0) || 1;
+
+  entries.forEach(([name, value], index) => {
+    const row = document.createElement("div");
+    row.className = "row";
+    row.style.animationDelay = (index * 0.08) + "s";
+
+    const top = document.createElement("div");
+    top.className = "top";
+    const nameElement = document.createElement("span");
+    nameElement.textContent = name;
+    const amountElement = document.createElement("span");
+    amountElement.textContent = money(value);
+    top.append(nameElement, amountElement);
+
+    const track = document.createElement("div");
+    track.className = "track";
+    const fill = document.createElement("div");
+    fill.className = "fill";
+    fill.style.width = (Number(value) / total * 100) + "%";
+    track.appendChild(fill);
+
+    row.append(top, track);
+    el.appendChild(row);
+  });
+}
+
+/* LOAD DASHBOARD */
+async function loadDashboard() {
+  $("msg").textContent = "";
+  $("msg").className = "";
+
+  const date = $("date").value;
+  if (!date) {
+    $("msg").textContent = "Please select a date.";
+    $("msg").className = "message-error";
+    return;
+  }
+
+  const button = $("load");
+  button.classList.add("loading");
+  button.textContent = "Loading...";
+
+  try {
+    const res = await fetch(API + "/api/dashboard?date=" + encodeURIComponent(date));
+    if (!res.ok) throw new Error("Server returned status " + res.status);
+    const d = await res.json();
+
+    $("income").textContent = money(d.totalIncome);
+    $("expense").textContent = money(d.totalExpense);
+
+    const p = Number(d.profit);
+    $("resultLabel").textContent = p < 0 ? "Loss" : "Profit";
+    $("profit").textContent = money(Math.abs(p));
+
+    /* FIX 1: this colour is now used by the CSS rule ".profit .kpi-value" */
+    document.querySelector(".profit")
+      .style.setProperty("--profit-color", p < 0 ? "#ef4444" : "#10b981");
+
+    drawBreakdown($("modes"), d.incomeByMode);
+    drawBreakdown($("types"), d.expenseByType);
+
+    $("msg").textContent = "✓ Dashboard loaded successfully";
+    $("msg").className = "message-success";
+
+  } catch (err) {
+    console.error(err);
+    /* FIX 3: show the real reason */
+    $("msg").textContent = "Could not load dashboard. (" + err.message + ") " +
+      "Check that Spring Boot is running on " + API + ".";
+    $("msg").className = "message-error";
+  }
+
+  button.classList.remove("loading");
+  button.textContent = "↻  Show Summary";
+}
+
+/* EVENTS */
+$("load").addEventListener("click", loadDashboard);
+loadDashboard();
+</script>
+</body>
+</html>

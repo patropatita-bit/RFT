@@ -1,6 +1,7 @@
 package com.qsp.rft.entity;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -29,5 +30,5 @@ public class Expense {
 	
 	    private String expenseType;
 	    private String description; 
-	    
+	    private LocalDate expenseDate;
 }

@@ -1,6 +1,7 @@
 package com.qsp.rft.entity;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -24,6 +25,7 @@ public class Payment {
  private BigDecimal amount;
  private String paymentMode;
  private String description;
- 
+ private LocalDate paymentDate;      
+
 	
 }

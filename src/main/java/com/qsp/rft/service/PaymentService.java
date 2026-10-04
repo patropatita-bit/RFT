@@ -39,6 +39,7 @@ public class PaymentService {
 		}
 		existingPayment.setAmount(payment.getAmount());
 		existingPayment.setPaymentMode(payment.getPaymentMode());
+		existingPayment.setPaymentDate(payment.getPaymentDate());
 		existingPayment.setDescription(payment.getDescription());
 
 		    return paymentRepository.save(existingPayment);

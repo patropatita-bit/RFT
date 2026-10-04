@@ -22,6 +22,14 @@ public class ReportService {
 
         BigDecimal totalPayment = paymentRepository.getTotalPayment();
         BigDecimal totalExpense = expenseRepository.getTotalExpense();
+        
+        if(totalPayment == null) {
+        	totalPayment=BigDecimal.ZERO;
+        	} 
+        		
+        if(totalExpense == null) {
+        	totalExpense=BigDecimal.ZERO;
+        	} 
 
         return totalPayment.subtract(totalExpense);
     }

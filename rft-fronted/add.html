@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Add Payment / Expense</title>
+<style>
+:root{--text:#172033;--muted:#718096;--card:rgba(255,255,255,0.85);--border:rgba(255,255,255,0.7);
+--shadow:0 10px 35px rgba(31,41,55,0.08);}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{min-height:100vh;color:var(--text);font-family:"Segoe UI",system-ui,sans-serif;
+background:radial-gradient(circle at 10% 20%,rgba(16,185,129,0.12),transparent 30%),
+radial-gradient(circle at 90% 10%,rgba(59,130,246,0.12),transparent 30%),linear-gradient(135deg,#f8fafc,#eef2ff);}
+main{width:min(1000px,94%);margin:auto;padding:35px 0 60px;}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:25px;flex-wrap:wrap;gap:10px;}
+h1{font-size:28px;font-weight:800;letter-spacing:-1px;}
+.back{color:#059669;font-weight:700;text-decoration:none;}
+.back:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #3b82f6;outline-offset:2px;}
+.split{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;}
+.card{background:var(--card);backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:22px;padding:25px;box-shadow:var(--shadow);}
+.card h2{font-size:18px;margin-bottom:4px;}
+.card .sub{color:var(--muted);font-size:13px;margin-bottom:18px;}
+label{display:block;font-size:14px;font-weight:600;margin:12px 0 5px;}
+input,select{width:100%;padding:11px 12px;border:1px solid #d5dedb;border-radius:11px;font:inherit;background:#fff;color:var(--text);}
+button{width:100%;margin-top:18px;border:none;padding:12px 20px;border-radius:13px;color:#fff;font-weight:700;font-size:15px;cursor:pointer;}
+.pay button{background:linear-gradient(135deg,#10b981,#059669);}
+.exp button{background:linear-gradient(135deg,#fb7185,#dc2626);}
+button:disabled{opacity:.6;cursor:wait;}
+.msg{min-height:22px;margin-top:12px;font-size:14px;font-weight:600;}
+.ok{color:#059669;}
+.err{color:#dc2626;}
+@media (max-width:760px){.split{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<main>
+
+<div class="top">
+  <h1>Add Payment / Expense</h1>
+  <a class="back" href="index.html">← Back to dashboard</a>
+</div>
+
+<section class="split">
+
+  <!-- PAYMENT FORM -->
+  <form class="card pay" id="payForm">
+    <h2>New payment</h2>
+    <p class="sub">Money received from a customer</p>
+
+    <label for="pAmount">Amount (₹)</label>
+    <input type="number" id="pAmount" min="0.01" step="0.01" required>
+
+    <label for="pMode">Payment mode</label>
+    <select id="pMode" required>
+      <option value="CASH">Cash</option>
+      <option value="UPI">UPI</option>
+      <option value="CARD">Card</option>
+    </select>
+
+    <label for="pDate">Date</label>
+    <input type="date" id="pDate" required>
+
+    <label for="pDesc">Description</label>
+    <input type="text" id="pDesc" placeholder="Table 5 bill">
+
+    <button type="submit">Save payment</button>
+    <div class="msg" id="pMsg" role="status"></div>
+  </form>
+
+  <!-- EXPENSE FORM -->
+  <form class="card exp" id="expForm">
+    <h2>New expense</h2>
+    <p class="sub">Money spent by the restaurant</p>
+
+    <label for="eAmount">Amount (₹)</label>
+    <input type="number" id="eAmount" min="0.01" step="0.01" required>
+
+    <label for="eType">Expense type</label>
+    <select id="eType" required>
+      <option value="FOOD_MATERIAL">Food material</option>
+      <option value="SALARY">Salary</option>
+      <option value="ELECTRICITY">Electricity</option>
+      <option value="RENT">Rent</option>
+      <option value="MAINTENANCE">Maintenance</option>
+      <option value="OTHER">Other</option>
+    </select>
+
+    <label for="eDate">Date</label>
+    <input type="date" id="eDate" required>
+
+    <label for="eDesc">Description</label>
+    <input type="text" id="eDesc" placeholder="Weekly vegetables">
+
+    <button type="submit">Save expense</button>
+    <div class="msg" id="eMsg" role="status"></div>
+  </form>
+
+</section>
+</main>
+
+<script>
+const API = "http://localhost:8081";
+const $ = (id) => document.getElementById(id);
+
+// Today's date (local time) in yyyy-mm-dd
+const n = new Date();
+const today = n.getFullYear() + "-" + String(n.getMonth() + 1).padStart(2, "0") + "-" + String(n.getDate()).padStart(2, "0");
+$("pDate").value = today;
+$("eDate").value = today;
+
+// One function saves both forms: it sends JSON to the given URL.
+async function save(form, url, body, msgEl, resetIds) {
+  const btn = form.querySelector("button");
+  msgEl.className = "msg";
+  msgEl.textContent = "";
+  btn.disabled = true;
+  try {
+    const res = await fetch(API + url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error("Server returned status " + res.status);
+    msgEl.className = "msg ok";
+    msgEl.textContent = "✓ Saved for " + body[Object.keys(body).find(k => k.endsWith("Date"))];
+    resetIds.forEach(id => { $(id).value = ""; });   // clear amount and description
+  } catch (err) {
+    msgEl.className = "msg err";
+    msgEl.textContent = "Could not save. (" + err.message + ") Check that Spring Boot is running.";
+  }
+  btn.disabled = false;
+}
+
+$("payForm").addEventListener("submit", (e) => {
+  e.preventDefault();                                  // stop the browser reloading the page
+  save(e.target, "/api/payments", {
+    amount: Number($("pAmount").value),
+    paymentMode: $("pMode").value,
+    paymentDate: $("pDate").value,
+    description: $("pDesc").value.trim()
+  }, $("pMsg"), ["pAmount", "pDesc"]);
+});
+
+$("expForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  save(e.target, "/api/expenses", {
+    amount: Number($("eAmount").value),
+    expenseType: $("eType").value,
+    expenseDate: $("eDate").value,
+    description: $("eDesc").value.trim()
+  }, $("eMsg"), ["eAmount", "eDesc"]);
+});
+</script>
+</body>
+</html>

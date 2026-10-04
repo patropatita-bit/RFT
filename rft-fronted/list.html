@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>All Payments & Expenses</title>
+<style>
+:root{--text:#172033;--muted:#718096;--card:rgba(255,255,255,0.88);--border:rgba(255,255,255,0.7);
+--shadow:0 10px 35px rgba(31,41,55,0.08);}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{min-height:100vh;color:var(--text);font-family:"Segoe UI",system-ui,sans-serif;
+background:radial-gradient(circle at 10% 20%,rgba(16,185,129,0.12),transparent 30%),
+radial-gradient(circle at 90% 10%,rgba(59,130,246,0.12),transparent 30%),linear-gradient(135deg,#f8fafc,#eef2ff);}
+main{width:min(1100px,94%);margin:auto;padding:35px 0 60px;}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;}
+h1{font-size:28px;font-weight:800;letter-spacing:-1px;}
+nav a{color:#059669;font-weight:700;text-decoration:none;margin-left:16px;}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #3b82f6;outline-offset:2px;}
+#msg{min-height:24px;margin-bottom:12px;font-weight:600;font-size:14px;}
+.ok{color:#059669;}
+.err{color:#dc2626;}
+.card{background:var(--card);backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:22px;padding:22px;box-shadow:var(--shadow);margin-bottom:22px;}
+.card h2{font-size:18px;margin-bottom:12px;}
+.scroll{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:560px;}
+th,td{text-align:left;padding:10px 8px;border-bottom:1px solid #e3e9ee;}
+th{color:var(--muted);font-weight:600;}
+td.num,th.num{text-align:right;}
+.empty{color:var(--muted);padding:16px 0;}
+.btn{border:none;border-radius:9px;padding:6px 12px;font-weight:700;font-size:13px;cursor:pointer;color:#fff;margin-left:6px;}
+.edit{background:#3b82f6;}
+.del{background:#dc2626;}
+dialog{border:none;border-radius:20px;padding:24px;width:min(420px,92%);box-shadow:0 20px 60px rgba(0,0,0,.25);margin:auto;}
+dialog::backdrop{background:rgba(15,23,42,.45);}
+dialog h3{margin-bottom:6px;}
+label{display:block;font-size:14px;font-weight:600;margin:12px 0 5px;}
+input,select{width:100%;padding:10px 12px;border:1px solid #d5dedb;border-radius:11px;font:inherit;}
+.actions{display:flex;gap:10px;margin-top:18px;}
+.actions button{flex:1;padding:11px;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-size:15px;}
+.save{background:#059669;color:#fff;}
+.cancel{background:#e5e7eb;color:#172033;}
+#dMsg{min-height:20px;margin-top:10px;font-size:14px;font-weight:600;}
+</style>
+</head>
+<body>
+<main>
+
+<div class="top">
+  <h1>All Payments & Expenses</h1>
+  <nav><a href="index.html">Dashboard</a><a href="add.html">+ Add new</a></nav>
+</div>
+
+<div id="msg" role="status"></div>
+
+<section class="card">
+  <h2>Payments (money in)</h2>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Date</th><th>Mode</th><th>Description</th><th class="num">Amount</th><th></th></tr></thead>
+      <tbody id="paymentBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Expenses (money out)</h2>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Date</th><th>Type</th><th>Description</th><th class="num">Amount</th><th></th></tr></thead>
+      <tbody id="expenseBody"></tbody>
+    </table>
+  </div>
+</section>
+
+</main>
+
+<!-- EDIT POP-UP -->
+<dialog id="dlg">
+  <form id="editForm">
+    <h3 id="dTitle">Edit</h3>
+    <label for="dAmount">Amount (₹)</label>
+    <input type="number" id="dAmount" min="0.01" step="0.01" required>
+    <label for="dType" id="dTypeLabel">Type</label>
+    <select id="dType" required></select>
+    <label for="dDate">Date</label>
+    <input type="date" id="dDate" required>
+    <label for="dDesc">Description</label>
+    <input type="text" id="dDesc">
+    <div class="actions">
+      <button type="button" class="cancel" id="dCancel">Cancel</button>
+      <button type="submit" class="save">Save changes</button>
+    </div>
+    <div id="dMsg" role="status"></div>
+  </form>
+</dialog>
+
+<script>
+const API = "http://localhost:8081";
+const $ = (id) => document.getElementById(id);
+const money = (n) => "₹" + Number(n).toLocaleString("en-IN");
+
+// One setting block per kind, so the same code handles payments and expenses.
+const KINDS = {
+  payment: { url: "/api/payments", body: "paymentBody", typeKey: "paymentMode", dateKey: "paymentDate",
+             typeLabel: "Payment mode", noun: "payment", types: ["CASH", "UPI", "CARD"] },
+  expense: { url: "/api/expenses", body: "expenseBody", typeKey: "expenseType", dateKey: "expenseDate",
+             typeLabel: "Expense type", noun: "expense",
+             types: ["FOOD_MATERIAL", "SALARY", "ELECTRICITY", "RENT", "MAINTENANCE", "OTHER"] }
+};
+const data = { payment: [], expense: [] };   // rows currently on screen
+let editing = null;                          // { kind, id } while the pop-up is open
+
+function say(text, cls) { $("msg").textContent = text; $("msg").className = cls || ""; }
+
+// Make a table cell with safe text
+function cell(text, cls) {
+  const td = document.createElement("td");
+  td.textContent = text;
+  if (cls) td.className = cls;
+  return td;
+}
+
+function draw(kind) {
+  const k = KINDS[kind];
+  const tbody = $(k.body);
+  tbody.textContent = "";
+  const rows = data[kind].slice().sort((a, b) => String(b[k.dateKey]).localeCompare(String(a[k.dateKey])));
+  if (rows.length === 0) {
+    const tr = document.createElement("tr");
+    const td = cell("No " + k.noun + "s yet.", "empty");
+    td.colSpan = 5;
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+    return;
+  }
+  rows.forEach((r) => {
+    const tr = document.createElement("tr");
+    tr.append(cell(r[k.dateKey] || "-"), cell(r[k.typeKey] || "-"), cell(r.description || ""), cell(money(r.amount), "num"));
+
+    const act = document.createElement("td");
+    act.className = "num";
+    const eb = document.createElement("button");
+    eb.className = "btn edit"; eb.textContent = "Edit";
+    eb.addEventListener("click", () => openEdit(kind, r));
+    const db = document.createElement("button");
+    db.className = "btn del"; db.textContent = "Delete";
+    db.addEventListener("click", () => remove(kind, r));
+    act.append(eb, db);
+    tr.appendChild(act);
+    tbody.appendChild(tr);
+  });
+}
+
+// READ: GET all rows
+async function load(kind) {
+  try {
+    const res = await fetch(API + KINDS[kind].url);
+    if (!res.ok) throw new Error("Server returned status " + res.status);
+    data[kind] = await res.json();
+    draw(kind);
+  } catch (err) {
+    say("Could not load " + KINDS[kind].noun + "s. (" + err.message + ") Check that Spring Boot is running.", "err");
+  }
+}
+
+// DELETE
+async function remove(kind, row) {
+  const k = KINDS[kind];
+  if (!confirm("Delete this " + k.noun + " of " + money(row.amount) + "? This cannot be undone.")) return;
+  try {
+    const res = await fetch(API + k.url + "/" + row.id, { method: "DELETE" });
+    if (!res.ok) throw new Error("Server returned status " + res.status);
+    say("✓ Deleted.", "ok");
+    load(kind);
+  } catch (err) {
+    say("Could not delete. (" + err.message + ")", "err");
+  }
+}
+
+// EDIT: open pop-up filled with the row's current values
+function openEdit(kind, row) {
+  const k = KINDS[kind];
+  editing = { kind, id: row.id };
+  $("dTitle").textContent = "Edit " + k.noun;
+  $("dTypeLabel").textContent = k.typeLabel;
+  $("dType").textContent = "";
+  k.types.forEach((t) => {
+    const o = document.createElement("option");
+    o.value = t; o.textContent = t;
+    $("dType").appendChild(o);
+  });
+  $("dAmount").value = row.amount;
+  $("dType").value = row[k.typeKey];
+  $("dDate").value = row[k.dateKey] || "";
+  $("dDesc").value = row.description || "";
+  $("dMsg").textContent = "";
+  $("dlg").showModal();
+}
+
+// UPDATE: PUT the changed values
+$("editForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const k = KINDS[editing.kind];
+  const body = {
+    amount: Number($("dAmount").value),
+    description: $("dDesc").value.trim()
+  };
+  body[k.typeKey] = $("dType").value;
+  body[k.dateKey] = $("dDate").value;
+  try {
+    const res = await fetch(API + k.url + "/" + editing.id, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error("Server returned status " + res.status);
+    $("dlg").close();
+    say("✓ Changes saved.", "ok");
+    load(editing.kind);
+  } catch (err) {
+    $("dMsg").textContent = "Could not save. (" + err.message + ")";
+    $("dMsg").className = "err";
+  }
+});
+
+$("dCancel").addEventListener("click", () => $("dlg").close());
+
+load("payment");
+load("expense");
+</script>
+</body>
+</html>
