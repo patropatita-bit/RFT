@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.qsp.rft.entity.Expense;
 import com.qsp.rft.service.ExpenseService;
 
+import jakarta.validation.Valid;
+
 @RestController
 @RequestMapping("/api/expenses")
 public class ExpenseController {
@@ -25,7 +27,7 @@ public class ExpenseController {
 	
 	
 	@PostMapping
-	public Expense saveExpense(@RequestBody Expense expense) {
+	public Expense saveExpense(@Valid @RequestBody Expense expense) {
 		 return expenseService.saveExpense(expense);
 	}
 	
@@ -40,7 +42,7 @@ public class ExpenseController {
     }
     
     @PutMapping("/{id}")
-    public Expense updateExpense(@PathVariable Long id,@RequestBody Expense expense) {
+    public Expense updateExpense(@PathVariable Long id,@Valid @RequestBody Expense expense) {
 
 
         return expenseService.updateExpense(id, expense);

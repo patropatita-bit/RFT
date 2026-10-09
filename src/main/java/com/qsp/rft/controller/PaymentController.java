@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.qsp.rft.entity.Payment;
 import com.qsp.rft.service.PaymentService;
 
+import jakarta.validation.Valid;
+
 @RestController
 @RequestMapping("/api/payments")
 public class PaymentController {
@@ -24,7 +26,7 @@ public class PaymentController {
 	private PaymentService paymentService;
 	
 	 @PostMapping
-	    public Payment savePayment(@RequestBody Payment payment) {
+	    public Payment savePayment(@Valid @RequestBody Payment payment) {
 	        return paymentService.savePayment(payment);
 	    }
 	 
@@ -40,7 +42,7 @@ public class PaymentController {
 	 }
 	 
 	 @PutMapping("/{id}")
-	 public Payment updatePayment(@PathVariable Long id, @RequestBody Payment payment) {
+	 public Payment updatePayment(@PathVariable Long id,@Valid @RequestBody Payment payment) {
 	     return paymentService.updatePayment(id, payment);
 	 }
 	 @DeleteMapping("/{id}")

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Login - Restaurant Finance Tracker</title>
+<style>
+:root{--text:#172033;--muted:#718096;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;color:var(--text);
+font-family:"Segoe UI",system-ui,sans-serif;
+background:radial-gradient(circle at 10% 20%,rgba(16,185,129,0.14),transparent 30%),
+radial-gradient(circle at 90% 10%,rgba(59,130,246,0.14),transparent 30%),linear-gradient(135deg,#f8fafc,#eef2ff);}
+.card{width:min(420px,100%);background:rgba(255,255,255,0.9);border-radius:22px;padding:28px;box-shadow:0 10px 35px rgba(31,41,55,0.1);}
+h1{font-size:22px;font-weight:800;letter-spacing:-.5px;}
+.sub{color:var(--muted);font-size:14px;margin:4px 0 18px;}
+.tabs{display:flex;gap:8px;margin-bottom:6px;}
+.tab{flex:1;padding:10px;border:1px solid #cfd8d4;background:#fff;color:var(--text);border-radius:11px;font-weight:700;cursor:pointer;}
+.tab.active{background:linear-gradient(135deg,#10b981,#059669);color:#fff;border-color:transparent;}
+label{display:block;font-size:14px;font-weight:600;margin:14px 0 5px;}
+input{width:100%;padding:11px 12px;border:1px solid #d5dedb;border-radius:11px;font:inherit;}
+input:focus-visible,button:focus-visible{outline:3px solid #3b82f6;outline-offset:2px;}
+.main{width:100%;margin-top:18px;border:none;padding:12px;border-radius:13px;color:#fff;font-weight:700;font-size:15px;cursor:pointer;background:linear-gradient(135deg,#10b981,#059669);}
+.main:disabled{opacity:.6;cursor:wait;}
+.link{background:none;border:none;color:#059669;font-weight:700;cursor:pointer;margin-top:12px;font-size:14px;}
+#msg{min-height:22px;margin-top:12px;font-size:14px;font-weight:600;}
+.err{color:#dc2626;}
+.ok{color:#059669;}
+.hidden{display:none;}
+.otp{letter-spacing:8px;font-size:22px;text-align:center;}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Restaurant Finance Tracker</h1>
+  <p class="sub">Log in with your mobile number. We will send you an OTP.</p>
+
+  <!-- STEP 1: phone number -->
+  <div id="step1">
+    <div class="tabs" role="group" aria-label="Login or register">
+      <button type="button" class="tab active" id="tabLogin">Login</button>
+      <button type="button" class="tab" id="tabReg">Register</button>
+    </div>
+    <form id="phoneForm" novalidate>
+      <div id="regFields" class="hidden">
+        <label for="name">Your name</label>
+        <input id="name" maxlength="60" autocomplete="name">
+        <label for="rest">Restaurant name</label>
+        <input id="rest" maxlength="80">
+      </div>
+      <label for="phone">Mobile number</label>
+      <input id="phone" type="tel" inputmode="numeric" maxlength="10" placeholder="10-digit number" autocomplete="tel">
+      <button class="main" id="sendBtn" type="submit">Send OTP</button>
+    </form>
+  </div>
+
+  <!-- STEP 2: OTP -->
+  <div id="step2" class="hidden">
+    <form id="otpForm" novalidate>
+      <label for="otp">Enter the 6-digit OTP sent to <span id="shownPhone"></span></label>
+      <input id="otp" class="otp" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code">
+      <button class="main" id="verifyBtn" type="submit">Verify and continue</button>
+    </form>
+    <button class="link" id="resend" type="button">Send a new OTP</button>
+    <button class="link" id="changeNo" type="button">Change number</button>
+  </div>
+
+  <div id="msg" role="alert"></div>
+</div>
+
+<script>
+const API = "";
+const $ = (id) => document.getElementById(id);
+let mode = "login";      // "login" or "register"
+let phone = "";
+
+function say(text, cls) { $("msg").textContent = text; $("msg").className = cls || ""; }
+
+// Read the best error message from the backend's JSON answer
+async function errorText(res) {
+  try {
+    const j = await res.json();
+    if (j.error) return j.error;
+    return Object.values(j).join(" ");     // validation errors: { field: message }
+  } catch (e) { return "Server returned status " + res.status; }
+}
+
+async function post(url, body) {
+  const res = await fetch(API + url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) throw new Error(await errorText(res));
+  return res.json();
+}
+
+function setMode(m) {
+  mode = m;
+  $("tabLogin").classList.toggle("active", m === "login");
+  $("tabReg").classList.toggle("active", m === "register");
+  $("regFields").classList.toggle("hidden", m === "login");
+  say("");
+}
+$("tabLogin").addEventListener("click", () => setMode("login"));
+$("tabReg").addEventListener("click", () => setMode("register"));
+
+// Only digits in the phone and OTP boxes
+["phone", "otp"].forEach((id) => $(id).addEventListener("input", (e) => {
+  e.target.value = e.target.value.replace(/\D/g, "");
+}));
+
+async function sendOtp() {
+  phone = $("phone").value;
+  if (!/^[6-9]\d{9}$/.test(phone)) { say("Enter a valid 10-digit mobile number.", "err"); return; }
+  if (mode === "register" && (!$("name").value.trim() || !$("rest").value.trim())) {
+    say("Please enter your name and restaurant name.", "err"); return;
+  }
+  $("sendBtn").disabled = true;
+  try {
+    if (mode === "register") {
+      await post("/api/auth/register", { name: $("name").value.trim(), restaurantName: $("rest").value.trim(), phone });
+    } else {
+      await post("/api/auth/request-otp", { phone });
+    }
+    $("shownPhone").textContent = phone;
+    $("step1").classList.add("hidden");
+    $("step2").classList.remove("hidden");
+    $("otp").value = ""; $("otp").focus();
+    say("OTP sent. (While testing, look in the Eclipse Console.)", "ok");
+  } catch (err) { say(err.message, "err"); }
+  $("sendBtn").disabled = false;
+}
+
+$("phoneForm").addEventListener("submit", (e) => { e.preventDefault(); sendOtp(); });
+
+$("otpForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const otp = $("otp").value;
+  if (!/^\d{6}$/.test(otp)) { say("Enter the 6-digit OTP.", "err"); return; }
+  $("verifyBtn").disabled = true;
+  try {
+    const user = await post("/api/auth/verify-otp", { phone, otp });
+    sessionStorage.setItem("rftUser", JSON.stringify(user));
+    window.location.href = "index.html";
+  } catch (err) { say(err.message, "err"); }
+  $("verifyBtn").disabled = false;
+});
+
+// Resend uses the login endpoint, because the number is already registered by now
+$("resend").addEventListener("click", async () => {
+  try { await post("/api/auth/request-otp", { phone }); say("A new OTP was sent.", "ok"); }
+  catch (err) { say(err.message, "err"); }
+});
+
+$("changeNo").addEventListener("click", () => {
+  $("step2").classList.add("hidden");
+  $("step1").classList.remove("hidden");
+  say("");
+});
+</script>
+</body>
+</html>

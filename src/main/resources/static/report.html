@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Profit Report</title>
+<style>
+:root{--text:#172033;--muted:#718096;--card:rgba(255,255,255,0.88);--border:rgba(255,255,255,0.7);
+--shadow:0 10px 35px rgba(31,41,55,0.08);}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{min-height:100vh;color:var(--text);font-family:"Segoe UI",system-ui,sans-serif;
+background:radial-gradient(circle at 10% 20%,rgba(16,185,129,0.12),transparent 30%),
+radial-gradient(circle at 90% 10%,rgba(59,130,246,0.12),transparent 30%),linear-gradient(135deg,#f8fafc,#eef2ff);}
+main{width:min(1100px,94%);margin:auto;padding:35px 0 60px;}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;}
+h1{font-size:28px;font-weight:800;letter-spacing:-1px;}
+nav a{color:#059669;font-weight:700;text-decoration:none;margin-left:16px;}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid #3b82f6;outline-offset:2px;}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.tab{border:1px solid #cfd8d4;background:#fff;color:var(--text);padding:10px 18px;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;}
+.tab.active{background:linear-gradient(135deg,#10b981,#059669);color:#fff;border-color:transparent;}
+.custom{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;}
+.custom label{font-size:14px;font-weight:600;}
+.custom input{padding:9px 10px;border:1px solid #d5dedb;border-radius:10px;font:inherit;}
+.go{border:none;background:#172033;color:#fff;padding:10px 18px;border-radius:12px;font-weight:700;cursor:pointer;}
+#period{font-weight:700;margin-bottom:6px;}
+#msg{min-height:24px;margin-bottom:12px;font-size:14px;font-weight:600;color:#dc2626;}
+.totals{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px;}
+.kpi{background:var(--card);backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:20px;padding:22px;box-shadow:var(--shadow);}
+.kpi .label{color:var(--muted);font-size:14px;font-weight:600;}
+.kpi .value{font-size:30px;font-weight:800;letter-spacing:-1px;}
+#profit.profit{color:#10b981;}
+#profit.loss{color:#ef4444;}
+.split{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;}
+.card{background:var(--card);backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:20px;padding:22px;box-shadow:var(--shadow);}
+.card h2{font-size:18px;margin-bottom:16px;}
+.row{margin-bottom:16px;}
+.row .t{display:flex;justify-content:space-between;font-size:14px;font-weight:600;margin-bottom:6px;}
+.track{height:9px;background:#e9eef3;border-radius:20px;overflow:hidden;}
+.fill{height:100%;border-radius:20px;background:linear-gradient(90deg,#10b981,#34d399);}
+#types .fill{background:linear-gradient(90deg,#6366f1,#8b5cf6);}
+.empty{color:var(--muted);padding:14px 0;}
+@media (max-width:760px){.totals,.split{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<main>
+
+<div class="top">
+  <h1>Profit Report</h1>
+  <nav><a href="index.html">Dashboard</a><a href="add.html">+ Add new</a><a href="list.html">View all</a></nav>
+</div>
+
+<div class="tabs" role="group" aria-label="Report period">
+  <button class="tab" data-p="today">Today</button>
+  <button class="tab" data-p="week">This Week</button>
+  <button class="tab" data-p="month">This Month</button>
+  <button class="tab" data-p="year">This Year</button>
+</div>
+
+<div class="custom">
+  <label for="start">From</label><input type="date" id="start">
+  <label for="end">To</label><input type="date" id="end">
+  <button class="go" id="go">Show custom range</button>
+</div>
+
+<div id="period"></div>
+<div id="msg" role="alert"></div>
+
+<section class="totals">
+  <div class="kpi"><div class="label">Total Income</div><div class="value" id="income">₹0</div></div>
+  <div class="kpi"><div class="label">Total Expenses</div><div class="value" id="expense">₹0</div></div>
+  <div class="kpi"><div class="label" id="resultLabel">Profit</div><div class="value profit" id="profit">₹0</div></div>
+</section>
+
+<section class="split">
+  <div class="card"><h2>Income by Payment Mode</h2><div id="modes"></div></div>
+  <div class="card"><h2>Expenses by Type</h2><div id="types"></div></div>
+</section>
+
+</main>
+
+<script>
+const API = "";   // same server as the page
+const $ = (id) => document.getElementById(id);
+const money = (n) => "₹" + Number(n).toLocaleString("en-IN");
+
+// Date -> "yyyy-mm-dd" using LOCAL time (toISOString would use UTC and can shift the day)
+const fmt = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+
+// Work out start and end dates for each button
+function range(p) {
+  const t = new Date();
+  const y = t.getFullYear(), m = t.getMonth();
+  if (p === "today") return [t, t];
+  if (p === "week") {                                   // Monday to Sunday
+    const back = (t.getDay() + 6) % 7;                  // days since Monday
+    const mon = new Date(y, m, t.getDate() - back);
+    const sun = new Date(y, m, t.getDate() - back + 6);
+    return [mon, sun];
+  }
+  if (p === "month") return [new Date(y, m, 1), new Date(y, m + 1, 0)];   // day 0 of next month = last day of this month
+  return [new Date(y, 0, 1), new Date(y, 11, 31)];      // year
+}
+
+function drawBreakdown(el, data) {
+  el.textContent = "";
+  const entries = Object.entries(data || {});
+  if (entries.length === 0) { el.textContent = "No entries in this period."; el.className = "empty"; return; }
+  el.className = "";
+  const total = entries.reduce((s, [, v]) => s + Number(v), 0) || 1;
+  entries.forEach(([name, value]) => {
+    const row = document.createElement("div"); row.className = "row";
+    const t = document.createElement("div"); t.className = "t";
+    const a = document.createElement("span"); a.textContent = name;
+    const b = document.createElement("span"); b.textContent = money(value);
+    t.append(a, b);
+    const track = document.createElement("div"); track.className = "track";
+    const fill = document.createElement("div"); fill.className = "fill";
+    fill.style.width = (Number(value) / total * 100) + "%";
+    track.appendChild(fill);
+    row.append(t, track);
+    el.appendChild(row);
+  });
+}
+
+async function loadReport(start, end, label) {
+  $("msg").textContent = "";
+  try {
+    const res = await fetch(API + "/api/report?start=" + encodeURIComponent(start) + "&end=" + encodeURIComponent(end));
+    if (!res.ok) {
+      let reason = "Server returned status " + res.status;
+      try { const j = await res.json(); if (j.error) reason = j.error; } catch (e) {}
+      throw new Error(reason);
+    }
+    const d = await res.json();
+    $("period").textContent = label + ":  " + start + "  to  " + end;
+    $("income").textContent = money(d.totalIncome);
+    $("expense").textContent = money(d.totalExpense);
+    const p = Number(d.profit);
+    $("resultLabel").textContent = p < 0 ? "Loss" : "Profit";
+    $("profit").textContent = money(Math.abs(p));
+    $("profit").className = "value " + (p < 0 ? "loss" : "profit");
+    drawBreakdown($("modes"), d.incomeByMode);
+    drawBreakdown($("types"), d.expenseByType);
+  } catch (err) {
+    $("msg").textContent = "Could not load the report. (" + err.message + ")";
+  }
+}
+
+function setActive(btn) {
+  document.querySelectorAll(".tab").forEach((b) => b.classList.toggle("active", b === btn));
+}
+
+document.querySelectorAll(".tab").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const [s, e] = range(btn.dataset.p);
+    $("start").value = fmt(s);
+    $("end").value = fmt(e);
+    setActive(btn);
+    loadReport(fmt(s), fmt(e), btn.textContent);
+  });
+});
+
+$("go").addEventListener("click", () => {
+  if (!$("start").value || !$("end").value) { $("msg").textContent = "Please pick both dates."; return; }
+  setActive(null);
+  loadReport($("start").value, $("end").value, "Custom range");
+});
+
+// Open on "This Month"
+document.querySelector('[data-p="month"]').click();
+</script>
+</body>
+</html>
